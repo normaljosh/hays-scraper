@@ -51,62 +51,65 @@ for chunk_start in range(0, n_files, chunk_size):
     events = []
     charges = []
     for f_name in files[chunk_start:chunk_end]:
-        with open(f"{FILE_DIR}/{f_name}", "r") as fin:
-            """
-            Extract fields of interest. you can add any attributes of interest to the
-            event_record dict and they will be included in the output CSV.
-            Extracts events and charges from the case file, in seperate files.
-            """
-            case = json.load(fin)
+        try:
+            with open(f"{FILE_DIR}/{f_name}", "r") as fin:
+                """
+                Extract fields of interest. you can add any attributes of interest to the
+                event_record dict and they will be included in the output CSV.
+                Extracts events and charges from the case file, in seperate files.
+                """
+                case = json.load(fin)
 
-            # extract demographic info
-            case_id = case["odyssey id"]
-            case_number = case["code"]
-            retained = case["party information"]["appointed or retained"]
-            gender = case["party information"]["sex"]
-            race = case["party information"]["race"]
-            defense_attorney = case["party information"]["defense attorney"]
+                # extract demographic info
+                case_id = case["odyssey id"]
+                case_number = case["code"]
+                retained = case["party information"]["appointed or retained"]
+                gender = case["party information"]["sex"]
+                race = case["party information"]["race"]
+                defense_attorney = case["party information"]["defense attorney"]
 
-            # extract event data
-            first_event_date = None
-            for i, event in enumerate(case["other events and hearings"]):
-                event_record = {}
-                event_date = parse_event_date(event[0])
+                # extract event data
+                first_event_date = None
+                for i, event in enumerate(case["other events and hearings"]):
+                    event_record = {}
+                    event_date = parse_event_date(event[0])
 
-                if i == 0:
-                    first_event_date = event_date
+                    if i == 0:
+                        first_event_date = event_date
 
-                days_elapsed = get_days_elapsed(first_event_date, event_date)
-                event_record["event_id"] = i + 1
-                event_record["event_date"] = iso_event_date(event_date)
-                event_record["first_event_date"] = iso_event_date(first_event_date)
-                event_record["days_elapsed"] = days_elapsed
-                event_record["event_name"] = event[1]
-                event_record["attorney"] = retained
-                event_record["case_id"] = case_id
-                event_record["case_number"] = case_number
-                event_record["defense_attorney"] = defense_attorney
-                event_record["race"] = race
-                event_record["gender"] = gender
-                events.append(event_record)
+                    days_elapsed = get_days_elapsed(first_event_date, event_date)
+                    event_record["event_id"] = i + 1
+                    event_record["event_date"] = iso_event_date(event_date)
+                    event_record["first_event_date"] = iso_event_date(first_event_date)
+                    event_record["days_elapsed"] = days_elapsed
+                    event_record["event_name"] = event[1]
+                    event_record["attorney"] = retained
+                    event_record["case_id"] = case_id
+                    event_record["case_number"] = case_number
+                    event_record["defense_attorney"] = defense_attorney
+                    event_record["race"] = race
+                    event_record["gender"] = gender
+                    events.append(event_record)
 
-            # extract charge data
-            for i, charge in enumerate(case["charge information"]):
-                charge_record = {}
-                charge_record["charge_id"] = i + 1
-                charge_record["charge_name"] = charge.get("charges", "")
-                charge_record["statute"] = charge.get("statute", "")
-                charge_record["level"] = charge.get("level", "")
+                # extract charge data
+                for i, charge in enumerate(case["charge information"]):
+                    charge_record = {}
+                    charge_record["charge_id"] = i + 1
+                    charge_record["charge_name"] = charge.get("charges", "")
+                    charge_record["statute"] = charge.get("statute", "")
+                    charge_record["level"] = charge.get("level", "")
 
-                charge_record["charge_date"] = charge.get("date", "")
-                if charge_record["charge_date"]:
-                    charge_record["charge_date"] = iso_event_date(
-                        parse_event_date(charge_record["charge_date"])
-                    )
+                    charge_record["charge_date"] = charge.get("date", "")
+                    if charge_record["charge_date"]:
+                        charge_record["charge_date"] = iso_event_date(
+                            parse_event_date(charge_record["charge_date"])
+                        )
 
-                charge_record["case_id"] = case_id
-                charge_record["case_number"] = case_number
-                charges.append(charge_record)
+                    charge_record["case_id"] = case_id
+                    charge_record["case_number"] = case_number
+                    charges.append(charge_record)
+        except:
+            print(f"error processing {f_name}")
     # Write events
     Key = f"csv_data/events_combined_{n_chunk}.csv"
     write_list_to_csv(file_list=events, Key=Key, bucket="indigent-defense")
