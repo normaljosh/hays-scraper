@@ -112,8 +112,10 @@ for chunk_start in range(0, n_files, chunk_size):
             print(f"error processing {f_name}")
     # Write events
     Key = f"csv_data/events_combined_{n_chunk}.csv"
-    write_list_to_csv(file_list=events, Key=Key, bucket="indigent-defense")
+    result = write_list_to_csv(file_list=events, Key=Key, bucket="indigent-defense")
+    print(result)
 
     # Write charges
     Key = f"csv_data/charges_combined_{n_chunk}.csv"
-    write_list_to_csv(file_list=charges, Key=Key, bucket="indigent-defense")
+    result = write_list_to_csv(file_list=charges, Key=Key, bucket="indigent-defense")
+    print(result)
