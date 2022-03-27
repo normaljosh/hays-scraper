@@ -1,7 +1,7 @@
 """
 Combine hearing & event records from multiple case files into a few csvs.
 """
-import csv
+import pandas as pd
 from datetime import datetime
 import json
 import os
@@ -29,21 +29,20 @@ def get_days_elapsed(start, end):
     return delta.days
 
 
-def write_list_to_csv(file_list: list, key: str, bucket: str = "indigent-defense"):
+def write_list_to_csv(file_list: list, Key: str, bucket: str = "indigent-defense"):
     """
     Write a list of json to the csv
     """
     csv_buffer = StringIO()
-    writer = csv.DictWriter(csv_buffer, fieldnames=file_list[0].keys())
-    writer.writeheader()
-    writer.writerows(events)
+    df = pd.DataFrame(file_list)
+    df.to_csv(csv_buffer)
     cli = boto3.client("s3")
     cli.put_object(
         Body=json.dumps(file_list),
         Bucket="indigent-defense",
         Key="case_id_example.json",
     )
-    return f"s3://{bucket}/{key}"
+    return f"s3://{bucket}/{Key}"
 
 
 files = [file for file in os.listdir(FILE_DIR) if file.endswith(".json")]
@@ -113,9 +112,9 @@ for chunk_start in range(0, n_files, chunk_size):
                 charge_record["case_number"] = case_number
                 charges.append(charge_record)
     # Write events
-    key = f"csv_data/events_combined_{n_chunk}.csv"
-    write_list_to_csv(file_list=events, key=key, bucket="indigent-defense")
+    Key = f"csv_data/events_combined_{n_chunk}.csv"
+    write_list_to_csv(file_list=events, Key=Key, bucket="indigent-defense")
 
     # Write charges
-    key = f"csv_data/charges_combined_{n_chunk}.csv"
-    write_list_to_csv(file_list=charges, key=key, bucket="indigent-defense")
+    Key = f"csv_data/charges_combined_{n_chunk}.csv"
+    write_list_to_csv(file_list=charges, Key=Key, bucket="indigent-defense")
