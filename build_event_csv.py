@@ -36,12 +36,8 @@ def write_list_to_csv(file_list: list, Key: str, bucket: str = "indigent-defense
     csv_buffer = StringIO()
     df = pd.DataFrame(file_list)
     df.to_csv(csv_buffer)
-    cli = boto3.client("s3")
-    cli.put_object(
-        Body=json.dumps(file_list),
-        Bucket="indigent-defense",
-        Key=Key,
-    )
+    s3_resource = boto3.resource("s3")
+    s3_resource.Object(bucket, "df.csv").put(Body=csv_buffer.getvalue())
     return f"s3://{bucket}/{Key}"
 
 
