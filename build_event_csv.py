@@ -1,12 +1,15 @@
 """
-Combine hearing & event records from multiple case files into a single csv.
+Combine hearing & event records from multiple case files into a few csvs.
 """
 import csv
 from datetime import datetime
 import json
 import os
+import boto3
+from io import StringIO
 
 FILE_DIR = os.path.join("data", "case_json")  # relative location of JSON case files
+chunk_size = 10000
 
 
 def parse_event_date(date_str):
@@ -26,15 +29,33 @@ def get_days_elapsed(start, end):
     return delta.days
 
 
-def main():
-    files = [file for file in os.listdir(FILE_DIR) if file.endswith(".json")]
+def write_list_to_csv(file_list: list, key: str, bucket: str = "indigent-defense"):
+    """
+    Write a list of json to the csv
+    """
+    csv_buffer = StringIO()
+    writer = csv.DictWriter(csv_buffer, fieldnames=file_list[0].keys())
+    writer.writeheader()
+    writer.writerows(events)
+    cli = boto3.client("s3")
+    cli.put_object(
+        Body=json.dumps(file_list),
+        Bucket="indigent-defense",
+        Key="case_id_example.json",
+    )
+    return f"s3://{bucket}/{key}"
+
+
+files = [file for file in os.listdir(FILE_DIR) if file.endswith(".json")]
+
+n_files = len(files)
+for chunk_start in range(0, n_files, chunk_size):
+    chunk_end = chunk_start + chunk_size
+    n_chunk = chunk_start // chunk_size
+    print(f"processing chunk {n_chunk} of {n_files //chunk_size}, {chunk_size} files")
     events = []
     charges = []
-
-    for f_count, f_name in enumerate(files):
-        if f_count % 1000 == 0:
-            print(f"Processing file {f_count} of {len(files)}")
-
+    for f_name in files[chunk_start:chunk_end]:
         with open(f"{FILE_DIR}/{f_name}", "r") as fin:
             """
             Extract fields of interest. you can add any attributes of interest to the
@@ -91,17 +112,10 @@ def main():
                 charge_record["case_id"] = case_id
                 charge_record["case_number"] = case_number
                 charges.append(charge_record)
+    # Write events
+    key = f"csv_data/events_combined_{n_chunk}.csv"
+    write_list_to_csv(file_list=events, key=key, bucket="indigent-defense")
 
-    with open("events_combined.csv", "w", newline="") as fout:
-        writer = csv.DictWriter(fout, fieldnames=events[0].keys())
-        writer.writeheader()
-        writer.writerows(events)
-
-    with open("charges_combined.csv", "w", newline="") as fout:
-        writer = csv.DictWriter(fout, fieldnames=charges[0].keys())
-        writer.writeheader()
-        writer.writerows(charges)
-
-
-if __name__ == "__main__":
-    main()
+    # Write charges
+    key = f"csv_data/charges_combined_{n_chunk}.csv"
+    write_list_to_csv(file_list=charges, key=key, bucket="indigent-defense")
